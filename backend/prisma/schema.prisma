@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  trainerProfile Trainer?
+  subscriptions  Subscription[]
+  following      Follow[]
+  favorites      Favorite[]
+  progress       Progress[]
+
+  @@map("users")
+}
+
+model Trainer {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique @db.ObjectId
+  certification String?
+  bio           String?
+  specialization String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plans     FitnessPlan[]
+  followers Follow[]
+
+  @@map("trainers")
+}
+
+model FitnessPlan {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  trainerId   String   @db.ObjectId
+  title       String
+  description String
+  price       Float
+  duration    Int      // Duration in days
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  trainer      Trainer       @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  favorites    Favorite[]
+  progress     Progress[]
+
+  @@map("fitness_plans")
+}
+
+model Subscription {
+  id         String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String           @db.ObjectId
+  planId     String           @db.ObjectId
+  purchasedAt DateTime        @default(now())
+  expiresAt  DateTime
+  status     SubscriptionStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  // Relationships
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan FitnessPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, planId])
+  @@map("subscriptions")
+}
+
+model Follow {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  trainerId String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trainerId])
+  @@map("follows")
+}
+
+model Favorite {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  planId    String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  // Relationships
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan FitnessPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, planId])
+  @@map("favorites")
+}
+
+model Progress {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  planId           String   @db.ObjectId
+  totalDays        Int
+  completedDays    Int      @default(0)
+  completedDaysList String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relationships
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan FitnessPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, planId])
+  @@map("progress")
+}
+
+enum Role {
+  USER
+  TRAINER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+}
